@@ -17,7 +17,18 @@ module Pushover
     # New response object, from an excon_response
     #   @return [Response] populated response object
     def self.create_from_excon_response(excon_response)
-      json = Oj.load excon_response[:body]
+
+      json = begin
+        Oj.load excon_response[:body]
+      rescue => ex
+        Rollbar.error "Error parsing response from pushover. Response is: #{excon_response[:body].inspect}"
+        Rollbar.error ex
+        if excon_response[:body].is_a?(Hash)
+          excon_response[:body]
+        else
+          {'response_body' => excon_response[:body].to_s }
+        end
+      end
       values = {}
       attributes = {}
       json.each { |k, v| members.include?(k.to_sym) ? values.store(k, v) : attributes.store(k, v) }
